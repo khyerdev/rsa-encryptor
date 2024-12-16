@@ -98,9 +98,54 @@ impl BiggerUInt {
         self
     }
 
-    pub fn divide(&self, divisor: Self) -> (Self, Self) {
-        todo!();
+    fn sub_underflow(&self, rhs: Self) -> (Self, bool) {
+        let mut output: Vec<u8> = Vec::new();
+        let mut borrows: Vec<i16> = vec![0, 2];
+        let mut place = 0;
+
+        while place < self.digits.len().max(rhs.digits.len()) {
+            if let Some(lhs) = self.digits.get(place) {
+                let mut result = (*lhs as i16 + borrows[place]) - (*rhs.digits.get(place).unwrap_or(&0)) as i16;
+
+                if result < 0 {
+                    if let Some(next) = self.digits.get(place + 1) {
+                        borrows[place + 1] = -1;
+                        result += (u8::MAX as i16) + 1;
+                    } else {
+                        return (Self::from_u8(0), true)
+                    }
+                }
+
+                output.push(result as u8);
+            } else {
+                return (Self::from_u8(0), true)
+            }
+
+            place += 1;
+            borrows.push(0);
+        }
+
+        (Self { digits: output }, false)
     }
+
+    fn slice(&self, range: Range<usize>) -> (Self, bool) {
+        if let Some(range) = self.digits.get(range) {
+            ( Self { digits: range.to_vec() }, false)
+        } else {
+            ( Self::new_empty(), true )
+        }
+    }
+
+    pub fn divide(&self, divisor: Self) -> (Self, Self) {
+        let dividend = self.clone().truncate_zeros();
+        let divisor = self.clone().truncate_zeros();
+
+        if divisor == Self::new_empty() { panic!("Quotient of BiggerUInt is Infinity due to divisor being Zero. Please reconsider.") }
+        if dividend == Self::new_empty() { return (Self::from_u8(0), Self::from_u8(0)) }
+
+        todo!()
+    }
+
     pub fn pow(&self, exponent: Self) -> Self { // https://en.wikipedia.org/wiki/Exponentiation_by_squaring
         let first_digit = *exponent.digits.get(0).unwrap_or(&0);
         if exponent.clone().truncate_zeros() == Self::new_empty() {
@@ -152,33 +197,9 @@ impl Sub for BiggerUInt {
     type Output = Self;
 
     fn sub(self, rhs: Self) -> Self::Output {
-        let mut output: Vec<u8> = Vec::new();
-        let mut borrows: Vec<i16> = vec![0, 2];
-        let mut place = 0;
-
-        while place < self.digits.len().max(rhs.digits.len()) {
-            if let Some(lhs) = self.digits.get(place) {
-                let mut result = (*lhs as i16 + borrows[place]) - (*rhs.digits.get(place).unwrap_or(&0)) as i16;
-
-                if result < 0 {
-                    if let Some(next) = self.digits.get(place + 1) {
-                        borrows[place + 1] = -1;
-                        result += (u8::MAX as i16) + 1;
-                    } else {
-                        panic!("Subtraction overflow of a BiggerUInt");
-                    }
-                }
-
-                output.push(result as u8);
-            } else {
-                panic!("Subtraction overflow of a BiggerUInt");
-            }
-
-            place += 1;
-            borrows.push(0);
-        }
-
-        Self { digits: output }
+        let (result, overflow) = self.sub_underflow(rhs);
+        if overflow { panic!("Subtraction underflow of a BiggerUInt. Please reconsider.") }
+        result
     }
 }
 impl SubAssign for BiggerUInt {

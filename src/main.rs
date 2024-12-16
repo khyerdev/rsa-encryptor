@@ -30,7 +30,11 @@ fn main() {
     // println!("{}", product.dbg_display());
 
     // TODO: division
-
+    //
+    // let inta = BiggerUInt::from_u8(25);
+    // let intb = BiggerUInt::from_u16(3425);
+    // println!("{}", (intb / inta).dbg_display());
+    //
     // TODO: modulation
 
     // TODO: exponentiation
